@@ -276,7 +276,7 @@ class M3u8Downloader:
                "-i", self.media_playlist_localfile,
                "-acodec", "copy",
                "-vcodec", "copy",
-               "-bsf:a", "aac_adtstoasc",
+               #"-bsf:a", "aac_adtstoasc",
                target_mp4]
         logger.info("Running: %s", cmd)
         proc = subprocess.run(cmd)
