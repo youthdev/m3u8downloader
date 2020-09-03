@@ -375,7 +375,7 @@ class M3u8Downloader:
         """download fragments.
 
         """
-        pool = multiprocessing.Pool(self.poolsize)
+        pool = multiprocessing.Pool(int(self.poolsize))
         self.total_fragments = len(fragment_urls)
         logger.info("playlist has %s fragments", self.total_fragments)
         for url in fragment_urls:
