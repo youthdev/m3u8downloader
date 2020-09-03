@@ -110,7 +110,9 @@ def get_url_content(url):
     r = SESSION.get(url)
     if not r.ok:
         raise requests.HTTPError(r)
-    return r.content
+    if r.history:
+        logger.info("REDIRECTED TO %s", r.url)
+    return r.content, r.url
 
 
 def get_suffix_from_url(url):
@@ -305,7 +307,7 @@ class M3u8Downloader:
         if os.path.exists(local_file):
             logger.debug("skip downloaded resource: %s", remote_file_url)
             return local_file, True
-        content = get_url_content(remote_file_url)
+        content, final_url = get_url_content(remote_file_url)
         ensure_dir_exists_for(local_file)
         with open(local_file, 'wb') as f:
             f.write(content)
@@ -401,7 +403,7 @@ class M3u8Downloader:
         # cache dir has been rewritten yet.
         self.rewrite_http_link_in_m3u8_file(self.media_playlist_localfile, url)
         if content is None:
-            content = get_url_content(url)
+            content, final_url = get_url_content(url)
 
         fragment_urls = []
         for line in content.decode("utf-8").split('\n'):
@@ -447,11 +449,11 @@ class M3u8Downloader:
         """download video at m3u8 link.
 
         """
-        content = get_url_content(url)
+        content, final_url = get_url_content(url)
         if "RESOLUTION" in content.decode('utf-8'):
-            self.process_master_playlist(url, content)
+            self.process_master_playlist(final_url, content)
         else:
-            self.process_media_playlist(url, content)
+            self.process_media_playlist(final_url, content)
 
 
 def main():
