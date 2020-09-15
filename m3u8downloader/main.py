@@ -309,8 +309,9 @@ class M3u8Downloader:
             return local_file, True
         content, final_url = get_url_content(remote_file_url)
         ensure_dir_exists_for(local_file)
-        with open(local_file, 'wb') as f:
+        with open(local_file + ".tmp", 'wb') as f:
             f.write(content)
+        os.rename(local_file + ".tmp", local_file)
         return local_file, False
 
     def download_key(self, url, key_line):
