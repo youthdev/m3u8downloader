@@ -370,17 +370,6 @@ class M3u8Downloader:
                 logger.debug("fragment created at: %s", fragment_full_name)
         return (url, fragment_full_name)
 
-    def fragment_download_failed(self, e):    # pylint: disable=no-self-use
-        """apply_async error callback.
-
-        """
-        try:
-            raise e
-        except Exception:    # pylint: disable=broad-except
-            # I don't have the url in the run time exception. hope requests
-            # exception have it.
-            logger.exception("fragment download failed")
-
     def download_fragments(self, fragment_urls):
         """download fragments.
 
@@ -403,9 +392,13 @@ class M3u8Downloader:
             if url in self.fragments:
                 logger.debug("skip downloaded fragment: %s", url)
                 continue
+
+            def fragment_download_failed(e):
+                logger.error("fragment %s download failed: %s" % (url, str(e)))
+
             pool.apply_async(self.download_fragment, (url,),
                              callback=fragment_downloaded,
-                             error_callback=self.fragment_download_failed)
+                             error_callback=fragment_download_failed)
         pool.close()
         pool.join()
         progressbar.close()
