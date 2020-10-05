@@ -26,7 +26,7 @@ import logging
 import platform
 
 import requests
-from wells.utils import retry
+from retry import retry
 
 import m3u8downloader
 import m3u8downloader.configlogger    # pylint: disable=unused-import
@@ -102,7 +102,7 @@ def ensure_dir_exists_for(full_filename):
     os.makedirs(os.path.dirname(full_filename), exist_ok=True)
 
 
-@retry(times=3, interval=[1, 5, 10])
+@retry(tries=5, delay=5, backoff=2)
 def get_url_content(url):
     """fetch url, return content as bytes.
 
