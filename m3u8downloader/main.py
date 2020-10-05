@@ -20,8 +20,7 @@ import subprocess
 import re
 from urllib.parse import urljoin, urlparse
 from collections import OrderedDict
-import multiprocessing
-import multiprocessing.queues
+from multiprocessing.dummy import Pool as ThreadPool
 import logging
 import platform
 
@@ -383,7 +382,7 @@ class M3u8Downloader:
         """download fragments.
 
         """
-        pool = multiprocessing.Pool(int(self.poolsize))
+        pool = ThreadPool(int(self.poolsize))
         self.total_fragments = len(fragment_urls)
         progressbar = tqdm(total=self.total_fragments, unit='fragment', desc='Downloading')
         self_obj = self
@@ -395,7 +394,6 @@ class M3u8Downloader:
             url, fragment_full_name = result
             self_obj.fragments[url] = fragment_full_name
             # progress log
-            fetched_fragment = len(self_obj.fragments)
             progressbar.update(1)
 
         for url in fragment_urls:
