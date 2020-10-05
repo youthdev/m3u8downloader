@@ -286,17 +286,24 @@ class M3u8Downloader:
         pattern = re.compile("^\[hls .* Opening .* for reading$")
 
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ffmpeg_output = []
         for line in proc.stderr.readlines():
-            if pattern.match(line.decode("utf-8").strip()):
+            line = line.decode("utf-8").strip()
+            if pattern.match(line):
                 progressbar.update(1)
+
+            # keep last 10 lines to output when error
+            ffmpeg_output.append(line)
+            if len(ffmpeg_output) > 10:
+                ffmpeg_output.pop(0)
 
         proc.wait()
         progressbar.update(1)
         progressbar.close()
 
         if proc.returncode != 0:
-            logger.error("run ffmpeg command failed: exitcode=%s",
-                         proc.returncode)
+            logger.error("run ffmpeg command failed: exitcode=%s, last output=%s",
+                         proc.returncode, "\n".join(ffmpeg_output))
             sys.exit(proc.returncode)
         print("Created mp4 file (%.1fMiB) at %s" %
               (filesizeMiB(target_mp4), target_mp4), file=sys.stderr)
