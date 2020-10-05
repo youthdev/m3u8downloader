@@ -21,7 +21,7 @@ To install m3u8downloader, simply:
 .. code-block:: bash
 
    $ sudo apt install -y ffmpeg
-   $ pip install --upgrade --user git+git://github.com/youthdev/m3u8downloader.git
+   $ pip install --upgrade --user https://github.com/youthdev/m3u8downloader/archive/master.zip
 
 
 Quick Start
