@@ -102,7 +102,7 @@ def ensure_dir_exists_for(full_filename):
     os.makedirs(os.path.dirname(full_filename), exist_ok=True)
 
 
-@retry(tries=5, delay=5, backoff=2)
+@retry(tries=5, delay=5, backoff=2, logger=logger.warning)
 def get_url_content(url):
     """fetch url, return content as bytes.
 
