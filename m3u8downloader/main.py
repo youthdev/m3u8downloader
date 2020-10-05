@@ -281,13 +281,14 @@ class M3u8Downloader:
                target_mp4]
         logger.info("Running: %s", cmd)
 
-        progressbar = tqdm(total=self.total_fragments + 1, unit='fragment', desc='Joining')
+        progressbar = tqdm(total=self.total_fragments, unit='fragment', desc='Joining')
         pattern = re.compile("^\[hls .* Opening .* for reading$")
 
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(cmd, bufsize=64,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         ffmpeg_output = []
-        for line in proc.stderr.readlines():
-            line = line.decode("utf-8").strip()
+        for line in iter(proc.stdout.readline, b''):
+            line = line.decode('utf-8').rstrip()
             if pattern.match(line):
                 progressbar.update(1)
 
@@ -297,7 +298,9 @@ class M3u8Downloader:
                 ffmpeg_output.pop(0)
 
         proc.wait()
-        progressbar.update(1)
+        # Workaround to set progress bar to 100%
+        progressbar.reset(total=self.total_fragments)
+        progressbar.update(self.total_fragments)
         progressbar.close()
 
         if proc.returncode != 0:
