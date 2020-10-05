@@ -280,10 +280,10 @@ class M3u8Downloader:
                "-vcodec", "copy",
                #"-bsf:a", "aac_adtstoasc",
                target_mp4]
-        print('Joining %d segments' % self.total_fragments, file=sys.stderr)
+        print('Joining %d fragments' % self.total_fragments, file=sys.stderr)
         logger.info("Running: %s", cmd)
 
-        progressbar = tqdm(total=self.total_fragments + 1, unit='segment')
+        progressbar = tqdm(total=self.total_fragments + 1, unit='fragment')
         pattern = re.compile("^\[hls .* Opening .* for reading$")
 
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -381,7 +381,7 @@ class M3u8Downloader:
         self.total_fragments = len(fragment_urls)
         print("Playlist has %s fragments" % self.total_fragments, file=sys.stderr)
 
-        progressbar = tqdm(total=self.total_fragments, unit='segment')
+        progressbar = tqdm(total=self.total_fragments, unit='fragment')
         self_obj = self
 
         def fragment_downloaded(result):
