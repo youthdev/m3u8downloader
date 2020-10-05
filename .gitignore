@@ -1,1 +1,4 @@
 .idea/
+.venv/
+m3u8downloader/__pycache__/
+*.mp4
