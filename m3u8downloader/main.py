@@ -280,10 +280,9 @@ class M3u8Downloader:
                "-vcodec", "copy",
                #"-bsf:a", "aac_adtstoasc",
                target_mp4]
-        print('Joining %d fragments' % self.total_fragments, file=sys.stderr)
         logger.info("Running: %s", cmd)
 
-        progressbar = tqdm(total=self.total_fragments + 1, unit='fragment')
+        progressbar = tqdm(total=self.total_fragments + 1, unit='fragment', desc='Joining')
         pattern = re.compile("^\[hls .* Opening .* for reading$")
 
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -379,9 +378,7 @@ class M3u8Downloader:
         """
         pool = multiprocessing.Pool(int(self.poolsize))
         self.total_fragments = len(fragment_urls)
-        print("Playlist has %s fragments" % self.total_fragments, file=sys.stderr)
-
-        progressbar = tqdm(total=self.total_fragments, unit='fragment')
+        progressbar = tqdm(total=self.total_fragments, unit='fragment', desc='Downloading')
         self_obj = self
 
         def fragment_downloaded(result):
@@ -464,6 +461,7 @@ class M3u8Downloader:
         """download video at m3u8 link.
 
         """
+        print('Fetching the playlist...', file=sys.stderr)
         content, final_url = get_url_content(url)
         if "RESOLUTION" in content.decode('utf-8'):
             self.process_master_playlist(final_url, content)
