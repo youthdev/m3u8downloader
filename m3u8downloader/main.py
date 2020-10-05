@@ -394,7 +394,7 @@ class M3u8Downloader:
                 continue
 
             def fragment_download_failed(e):
-                logger.error("fragment %s download failed: %s" % (url, str(e)))
+                logger.error("fragment download failed (%s): %s" % (url, str(e)))
 
             pool.apply_async(self.download_fragment, (url,),
                              callback=fragment_downloaded,
