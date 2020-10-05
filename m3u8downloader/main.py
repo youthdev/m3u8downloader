@@ -30,6 +30,7 @@ from wells.utils import retry
 
 import m3u8downloader
 import m3u8downloader.configlogger    # pylint: disable=unused-import
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 SESSION = requests.Session()
@@ -271,21 +272,35 @@ class M3u8Downloader:
         if not target_mp4.endswith(".mp4"):
             target_mp4 += ".mp4"
         cmd = ["ffmpeg",
-               "-loglevel", "warning",
+               "-y",
+               "-loglevel", "info",
                "-allowed_extensions", "ALL",
                "-i", self.media_playlist_localfile,
                "-acodec", "copy",
                "-vcodec", "copy",
                #"-bsf:a", "aac_adtstoasc",
                target_mp4]
+        print('Joining %d segments' % self.total_fragments, file=sys.stderr)
         logger.info("Running: %s", cmd)
-        proc = subprocess.run(cmd)
+
+        progressbar = tqdm(total=self.total_fragments + 1, unit='segment')
+        pattern = re.compile("^\[hls .* Opening .* for reading$")
+
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for line in proc.stderr.readlines():
+            if pattern.match(line.decode("utf-8").strip()):
+                progressbar.update(1)
+
+        proc.wait()
+        progressbar.update(1)
+        progressbar.close()
+
         if proc.returncode != 0:
             logger.error("run ffmpeg command failed: exitcode=%s",
                          proc.returncode)
             sys.exit(proc.returncode)
-        logger.info("mp4 file created, size=%.1fMiB, filename=%s",
-                    filesizeMiB(target_mp4), target_mp4)
+        print("Created mp4 file (%.1fMiB) at %s" %
+              (filesizeMiB(target_mp4), target_mp4), file=sys.stderr)
         logger.info("Removing temp files in dir: \"%s\"", self.tempdir)
         if os.path.exists("/bin/rm"):
             subprocess.run(["/bin/rm", "-rf", self.tempdir])
@@ -347,22 +362,6 @@ class M3u8Downloader:
                 logger.debug("fragment created at: %s", fragment_full_name)
         return (url, fragment_full_name)
 
-    def fragment_downloaded(self, result):
-        """apply_async callback.
-
-        """
-        url, fragment_full_name = result
-        self.fragments[url] = fragment_full_name
-        # progress log
-        fetched_fragment = len(self.fragments)
-        if fetched_fragment == self.total_fragments:
-            logger.info("100%%, %s fragments fetched", self.total_fragments)
-        elif fetched_fragment % 10 == 0:
-            logger.info("[%2.0f%%] %3s/%s fragments fetched",
-                        fetched_fragment * 100.0 / self.total_fragments,
-                        fetched_fragment,
-                        self.total_fragments)
-
     def fragment_download_failed(self, e):    # pylint: disable=no-self-use
         """apply_async error callback.
 
@@ -380,16 +379,31 @@ class M3u8Downloader:
         """
         pool = multiprocessing.Pool(int(self.poolsize))
         self.total_fragments = len(fragment_urls)
-        logger.info("playlist has %s fragments", self.total_fragments)
+        print("Playlist has %s fragments" % self.total_fragments, file=sys.stderr)
+
+        progressbar = tqdm(total=self.total_fragments, unit='segment')
+        self_obj = self
+
+        def fragment_downloaded(result):
+            """apply_async callback.
+
+            """
+            url, fragment_full_name = result
+            self_obj.fragments[url] = fragment_full_name
+            # progress log
+            fetched_fragment = len(self_obj.fragments)
+            progressbar.update(1)
+
         for url in fragment_urls:
             if url in self.fragments:
-                logger.info("skip downloaded fragment: %s", url)
+                logger.debug("skip downloaded fragment: %s", url)
                 continue
             pool.apply_async(self.download_fragment, (url,),
-                             callback=self.fragment_downloaded,
+                             callback=fragment_downloaded,
                              error_callback=self.fragment_download_failed)
         pool.close()
         pool.join()
+        progressbar.close()
 
     def process_media_playlist(self, url, content=None):
         """replicate every file on the playlist in local temp dir.
@@ -468,7 +482,7 @@ def main():
                         help='specify Origin header for HTTP requests')
     parser.add_argument('--version', action='version',
                         version='%(prog)s ' + m3u8downloader.__version__)
-    parser.add_argument('--debug', action='store_true', help='enable debug log')
+    parser.add_argument('--loglevel', help='set loglevel [error, warning, info, debug], default: error')
     parser.add_argument('--output', '-o', required=True,
                         help='output video filename, e.g. ~/Downloads/foo.mp4')
     parser.add_argument(
@@ -480,8 +494,14 @@ def main():
     parser.add_argument('url', metavar='URL', help='the m3u8 url')
     args = parser.parse_args()
 
-    if args.debug:
+    if args.loglevel == "debug":
         logging.getLogger("").setLevel(logging.DEBUG)
+    elif args.loglevel == "info":
+        logging.getLogger("").setLevel(logging.INFO)
+    elif args.loglevel == "warning":
+        logging.getLogger("").setLevel(logging.WARNING)
+    else:
+        logging.getLogger("").setLevel(logging.ERROR)
 
     SESSION.headers.update({'User-Agent': args.user_agent})
     if args.origin:
