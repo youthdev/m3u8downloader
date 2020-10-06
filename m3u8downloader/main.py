@@ -299,8 +299,7 @@ class M3u8Downloader:
 
         proc.wait()
         # Workaround to set progress bar to 100%
-        progressbar.reset(total=self.total_fragments)
-        progressbar.update(self.total_fragments)
+        progressbar.update(progressbar.total - progressbar.n)
         progressbar.close()
 
         if proc.returncode != 0:
