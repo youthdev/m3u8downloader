@@ -281,7 +281,7 @@ class M3u8Downloader:
                target_mp4]
         logger.info("Running: %s", cmd)
 
-        progressbar = tqdm(total=len(self.fragments), unit='fragment', desc='Joining')
+        progressbar = tqdm(total=len(self.fragments), unit='fragment', desc='Muxing')
         pattern = re.compile("^\[hls .* Opening .* for reading$")
 
         proc = subprocess.Popen(cmd, bufsize=64,
