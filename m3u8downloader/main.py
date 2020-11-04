@@ -211,7 +211,7 @@ def safe_file_name(name):
 
 
 class M3u8Downloader:
-    def __init__(self, url, output_filename, tempdir=".", poolsize=5):
+    def __init__(self, url, output_filename, tempdir=".", poolsize=5, refresh=False):
         self.start_url = url
 
         # make sure output_filename is a safe filename on platform.
@@ -234,6 +234,9 @@ class M3u8Downloader:
         except IOError as _:
             logger.exception("create tempdir failed for: %s", self.tempdir)
             raise
+
+        if refresh:
+            self.clear_cache()
 
         self.media_playlist_localfile = None
         self.poolsize = poolsize
@@ -302,18 +305,22 @@ class M3u8Downloader:
         progressbar.update(progressbar.total - progressbar.n)
         progressbar.close()
 
+        logger.info("Removing temp files in dir: \"%s\"", self.tempdir)
+        self.clear_cache()
+        logger.info("temp files removed")
+
         if proc.returncode != 0:
             logger.error("run ffmpeg command failed: exitcode=%s, last output=%s",
                          proc.returncode, "\n".join(ffmpeg_output))
             sys.exit(proc.returncode)
         print("Created mp4 file (%.1fMiB) at %s" %
               (filesizeMiB(target_mp4), target_mp4), file=sys.stderr)
-        logger.info("Removing temp files in dir: \"%s\"", self.tempdir)
+
+    def clear_cache(self):
         if os.path.exists("/bin/rm"):
             subprocess.run(["/bin/rm", "-rf", self.tempdir])
         elif os.path.exists("C:/Windows/SysWOW64/cmd.exe"):
             subprocess.run(["rd", "/s", "/q", self.tempdir], shell=True)
-        logger.info("temp files removed")
 
     def mirror_url_resource(self, remote_file_url):
         """download remote file and replicate the same dir structure locally.
@@ -489,6 +496,7 @@ def main():
         help='temp dir, used to store .ts files before combing them into mp4')
     parser.add_argument('--concurrency', '-c', metavar='N', default=5,
                         help='number of fragments to download at a time')
+    parser.add_argument('--refresh', '-r', default=False, required=False, action='store_true')
     parser.add_argument('url', metavar='URL', help='the m3u8 url')
     args = parser.parse_args()
 
@@ -506,7 +514,8 @@ def main():
         SESSION.headers.update({'Origin': args.origin})
     downloader = M3u8Downloader(args.url, args.output,
                                 tempdir=args.tempdir,
-                                poolsize=args.concurrency)
+                                poolsize=args.concurrency,
+                                refresh=args.refresh)
     downloader.start()
 
 
