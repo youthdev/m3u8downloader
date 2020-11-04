@@ -496,7 +496,8 @@ def main():
         help='temp dir, used to store .ts files before combing them into mp4')
     parser.add_argument('--concurrency', '-c', metavar='N', default=5,
                         help='number of fragments to download at a time')
-    parser.add_argument('--refresh', '-r', default=False, required=False, action='store_true')
+    parser.add_argument('--refresh', '-r', default=False, required=False, action='store_true',
+                        help='clear existed cache before doing download')
     parser.add_argument('url', metavar='URL', help='the m3u8 url')
     args = parser.parse_args()
 
