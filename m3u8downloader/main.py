@@ -270,9 +270,19 @@ class M3u8Downloader:
 
     def start(self):
         self.download_m3u8_link(self.start_url)
+        intermediate_mp4 = os.path.join(self.tempdir, "intermediate.mp4")
         target_mp4 = self.output_filename
+
+        if not intermediate_mp4.endswith(".mp4"):
+            intermediate_mp4 += ".mp4"
         if not target_mp4.endswith(".mp4"):
             target_mp4 += ".mp4"
+
+        # Generate intermediate file first with -copyts param to preserve timestamp of live streaming signal,
+        # without this param, ffmpeg will sanitize video and shorten the video output
+        # due to dropped frames while streaming.
+        # But with the same timestamp with live streaming, a VOD can not be seek,
+        # so we have to generate an intermediate first and then generate target output later.
         cmd = ["ffmpeg",
                "-y",
                "-loglevel", "info",
@@ -280,11 +290,12 @@ class M3u8Downloader:
                "-i", self.media_playlist_localfile,
                "-acodec", "copy",
                "-vcodec", "copy",
-               #"-bsf:a", "aac_adtstoasc",
-               target_mp4]
+               "-copyts",
+               "-bsf:a", "aac_adtstoasc",
+               intermediate_mp4]
         logger.info("Running: %s", cmd)
 
-        progressbar = tqdm(total=len(self.fragments), unit='fragment', desc='Muxing')
+        progressbar = tqdm(total=len(self.fragments), unit='fragment', desc='Muxing (intermediate)')
         pattern = re.compile("^\[hls .* Opening .* for reading$")
 
         proc = subprocess.Popen(cmd, bufsize=64,
@@ -305,6 +316,36 @@ class M3u8Downloader:
         progressbar.update(progressbar.total - progressbar.n)
         progressbar.close()
 
+        # Generate output file from intermediate file.
+        # This is the step to convert mp4 file with live pts/dts to VOD friendly (seekable)
+        cmd = ["ffmpeg",
+               "-y",
+               "-loglevel", "info",
+               "-i", intermediate_mp4,
+               "-acodec", "copy",
+               "-vcodec", "copy",
+               target_mp4]
+        logger.info("Running: %s", cmd)
+
+        progressbar = tqdm(total=1, unit='file', desc='Muxing')
+
+        proc = subprocess.Popen(cmd, bufsize=64,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        ffmpeg_output = []
+        for line in iter(proc.stdout.readline, b''):
+            line = line.decode('utf-8').rstrip()
+
+            # keep last 10 lines to output when error
+            ffmpeg_output.append(line)
+            if len(ffmpeg_output) > 10:
+                ffmpeg_output.pop(0)
+
+        proc.wait()
+        # Workaround to set progress bar to 100%
+        progressbar.update(progressbar.total - progressbar.n)
+        progressbar.close()
+
+        # Clean up cache
         logger.info("Removing temp files in dir: \"%s\"", self.tempdir)
         self.clear_cache()
         logger.info("temp files removed")
