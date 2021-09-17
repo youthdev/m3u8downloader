@@ -23,6 +23,7 @@ from collections import OrderedDict
 from multiprocessing.dummy import Pool as ThreadPool
 import logging
 import platform
+import json
 
 import requests
 from retry import retry
@@ -283,6 +284,17 @@ class M3u8Downloader:
         # due to dropped frames while streaming.
         # But with the same timestamp with live streaming, a VOD can not be seek,
         # so we have to generate an intermediate first and then generate target output later.
+
+        extra_params=[]
+        # Detect whether the input audio is AAC, because we need to convert ADTS to ASC for mp4 container
+        output = subprocess.check_output(["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams",
+                                          self.media_playlist_localfile])
+        output_json = json.loads(output.decode('utf-8'))
+        if "streams" in output_json:
+            for stream in output_json["streams"]:
+                if stream["codec_name"] == "aac":
+                    extra_params+=["-bsf:a", "aac_adtstoasc"]
+
         cmd = ["ffmpeg",
                "-y",
                "-loglevel", "info",
@@ -290,9 +302,7 @@ class M3u8Downloader:
                "-i", self.media_playlist_localfile,
                "-acodec", "copy",
                "-vcodec", "copy",
-               "-copyts",
-               "-bsf:a", "aac_adtstoasc",
-               intermediate_mp4]
+               "-copyts"] + extra_params + [intermediate_mp4]
         logger.info("Running: %s", cmd)
 
         progressbar = tqdm(total=len(self.fragments), unit='fragment', desc='Muxing (intermediate)')
